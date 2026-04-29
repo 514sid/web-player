@@ -36,12 +36,13 @@ export default function PlayerPage() {
   const [active, setActive] = useState<0 | 1>(0);
   const [slots, setSlots] = useState<[Slot, Slot]>([EMPTY_SLOT, EMPTY_SLOT]);
 
-  const filesRef  = useRef<StoredFile[]>([]);
-  const indexRef  = useRef(0);
-  const activeRef = useRef<0 | 1>(0);
-  const slotsRef  = useRef<[Slot, Slot]>([EMPTY_SLOT, EMPTY_SLOT]);
-  const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const videoRefs = useRef<[HTMLVideoElement | null, HTMLVideoElement | null]>([null, null]);
+  const filesRef     = useRef<StoredFile[]>([]);
+  const indexRef     = useRef(0);
+  const activeRef    = useRef<0 | 1>(0);
+  const slotsRef     = useRef<[Slot, Slot]>([EMPTY_SLOT, EMPTY_SLOT]);
+  const timerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoRefs    = useRef<[HTMLVideoElement | null, HTMLVideoElement | null]>([null, null]);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   filesRef.current  = files;
   activeRef.current = active;
@@ -93,6 +94,8 @@ export default function PlayerPage() {
     if (!files.length) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     indexRef.current = 0;
+
+    containerRef.current?.requestFullscreen().catch(() => {});
 
     resolveUrl(files[0]).then((url) => {
       setSlots((prev) => {
@@ -159,7 +162,7 @@ export default function PlayerPage() {
   }
 
   return (
-    <div className="w-screen h-screen bg-black relative overflow-hidden cursor-none">
+    <div ref={containerRef} className="w-screen h-screen bg-black relative overflow-hidden cursor-none">
       {([0, 1] as const).map((slotIdx) => {
         const slot = slots[slotIdx];
         if (!slot.url || !slot.file) return null;
