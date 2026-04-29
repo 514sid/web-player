@@ -1,12 +1,16 @@
 const FILE_CACHE = "file-cache";
 const APP_CACHE  = "app-v1";
 
+// Derive base from SW scope so this works at "/" and "/repo-name/"
+const SCOPE = self.registration.scope;          // e.g. "https://user.github.io/repo/"
+const BASE  = new URL(SCOPE).pathname;          // e.g. "/" or "/repo-name/"
+
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 
 self.addEventListener("install", (event) => {
   // Precache the app shell so the first offline visit works
   event.waitUntil(
-    caches.open(APP_CACHE).then((c) => c.addAll(["/", "/index.html"]))
+    caches.open(APP_CACHE).then((c) => c.addAll([SCOPE, SCOPE + "index.html"]))
   );
   self.skipWaiting();
 });
@@ -46,7 +50,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   // Hashed JS/CSS assets — cache-first (content hash = immutable)
-  if (url.pathname.startsWith("/assets/")) {
+  if (url.pathname.startsWith(BASE + "assets/")) {
     event.respondWith(
       caches.match(event.request).then(
         (cached) => cached ?? fetchAndCache(event.request, APP_CACHE)
@@ -59,7 +63,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetchAndCache(event.request, APP_CACHE).catch(
-        () => caches.match("/index.html")
+        () => caches.match(SCOPE + "index.html") ?? caches.match(SCOPE)
       )
     );
     return;
