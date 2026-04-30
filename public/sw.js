@@ -10,7 +10,7 @@ const BASE  = new URL(SCOPE).pathname;          // e.g. "/" or "/repo-name/"
 self.addEventListener("install", (event) => {
   // Precache the app shell so the first offline visit works
   event.waitUntil(
-    caches.open(APP_CACHE).then((c) => c.addAll([SCOPE, SCOPE + "index.html"]))
+    caches.open(APP_CACHE).then((c) => c.addAll([SCOPE, SCOPE + "index.html", SCOPE + "manifest.webmanifest"]))
   );
   self.skipWaiting();
 });

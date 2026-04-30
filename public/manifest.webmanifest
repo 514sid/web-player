@@ -1,0 +1,18 @@
+{
+  "name": "Web Signage",
+  "short_name": "Signage",
+  "description": "Offline-first digital signage player",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#863bff",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
