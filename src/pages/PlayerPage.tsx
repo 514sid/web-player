@@ -14,10 +14,7 @@ async function resolveUrl(file: StoredFile): Promise<string | null> {
     const blob = await getFileBlob(file.id);
     return blob ? URL.createObjectURL(blob) : null;
   }
-  // Stream videos via SW — but fall back to a blob URL when the SW is
-  // bypassed (e.g. hard refresh with Ctrl+Shift+R), otherwise the request
-  // returns 404 and the video never plays.
-  if (file.type.startsWith("video/") && navigator.serviceWorker?.controller) {
+  if (file.type.startsWith("video/")) {
     return fileStreamUrl(file.id);
   }
   const blob = await getFileBlob(file.id);
@@ -33,6 +30,7 @@ export default function PlayerPage() {
   const navigate = useNavigate();
   const [files, setFiles] = useState<StoredFile[]>([]);
   const [loading, setLoading] = useState(true);
+  const swReady = Boolean(navigator.serviceWorker?.controller);
   const [active, setActive] = useState<0 | 1>(0);
   const [slots, setSlots] = useState<[Slot, Slot]>([EMPTY_SLOT, EMPTY_SLOT]);
 
@@ -139,6 +137,16 @@ export default function PlayerPage() {
       slotsRef.current.forEach(releaseUrl);
     };
   }, []);
+
+  if (!swReady) {
+    return (
+      <div className="w-screen h-screen bg-black flex items-center justify-center">
+        <p className="text-red-500 text-sm text-center px-8">
+          Service worker not active. Reload the page after the first visit, or avoid hard-refresh (Ctrl+Shift+R).
+        </p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
