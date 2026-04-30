@@ -15,8 +15,12 @@ const DEFAULT_DURATION = 10_000;
 const fileUrl  = (id: string) => `/_files/${id}`;
 export const fileStreamUrl = (id: string) => `/_files/${id}`;
 const thumbUrl = (id: string) => `/_thumbs/${id}`;
-const ORDER_URL      = "/_order";
-const DURATIONS_URL  = "/_durations";
+const CONFIG_URL = "/_config";
+
+interface Config {
+  order: string[];
+  durations: Record<string, number>;
+}
 
 // --- Thumbnail generation ---
 
@@ -79,47 +83,31 @@ async function generateThumbnail(file: File): Promise<{ blob: Blob | null; durat
   return { blob: null, duration: null };
 }
 
-// --- Durations ---
+// --- Config (order + durations) ---
 
-async function readDurations(): Promise<Record<string, number>> {
+async function readConfig(): Promise<Config> {
   const cache = await caches.open(CACHE_NAME);
-  const res = await cache.match(DURATIONS_URL);
-  if (!res) return {};
+  const res = await cache.match(CONFIG_URL);
+  if (!res) return { order: [], durations: {} };
   return res.json();
 }
 
-async function writeDurations(map: Record<string, number>): Promise<void> {
+async function writeConfig(config: Config): Promise<void> {
   const cache = await caches.open(CACHE_NAME);
   await cache.put(
-    DURATIONS_URL,
-    new Response(JSON.stringify(map), { headers: { "content-type": "application/json" } })
+    CONFIG_URL,
+    new Response(JSON.stringify(config), { headers: { "content-type": "application/json" } })
   );
 }
 
-export async function setDuration(id: string, seconds: number): Promise<void> {
-  const map = await readDurations();
-  await writeDurations({ ...map, [id]: seconds });
-}
-
-// --- Order ---
-
-async function readOrder(): Promise<string[]> {
-  const cache = await caches.open(CACHE_NAME);
-  const res = await cache.match(ORDER_URL);
-  if (!res) return [];
-  return res.json();
-}
-
-async function writeOrder(ids: string[]): Promise<void> {
-  const cache = await caches.open(CACHE_NAME);
-  await cache.put(
-    ORDER_URL,
-    new Response(JSON.stringify(ids), { headers: { "content-type": "application/json" } })
-  );
+export async function setDuration(id: string, ms: number): Promise<void> {
+  const config = await readConfig();
+  await writeConfig({ ...config, durations: { ...config.durations, [id]: ms } });
 }
 
 export async function setOrder(ids: string[]): Promise<void> {
-  await writeOrder(ids);
+  const config = await readConfig();
+  await writeConfig({ ...config, order: ids });
 }
 
 // --- File operations ---
@@ -155,11 +143,8 @@ export async function saveFile(file: File): Promise<StoredFile> {
 
   await cache.put(fileUrl(id), new Response(file, { headers }));
 
-  const [order, durations] = await Promise.all([readOrder(), readDurations()]);
-  await Promise.all([
-    writeOrder([...order, id]),
-    writeDurations({ ...durations, [id]: fileDuration }),
-  ]);
+  const config = await readConfig();
+  await writeConfig({ order: [...config.order, id], durations: { ...config.durations, [id]: fileDuration } });
 
   return meta;
 }
@@ -187,7 +172,7 @@ export async function listFiles(): Promise<StoredFile[]> {
     });
   }
 
-  const [order, durations] = await Promise.all([readOrder(), readDurations()]);
+  const { order, durations } = await readConfig();
   for (const entry of entries) {
     if (entry.id in durations) entry.duration = durations[entry.id];
   }
@@ -220,10 +205,7 @@ export async function getThumbnailBlob(id: string): Promise<Blob | null> {
 export async function deleteFile(id: string): Promise<void> {
   const cache = await caches.open(CACHE_NAME);
   await Promise.all([cache.delete(fileUrl(id)), cache.delete(thumbUrl(id))]);
-  const [order, durations] = await Promise.all([readOrder(), readDurations()]);
+  const { order, durations } = await readConfig();
   const { [id]: _, ...restDurations } = durations;
-  await Promise.all([
-    writeOrder(order.filter((i) => i !== id)),
-    writeDurations(restDurations),
-  ]);
+  await writeConfig({ order: order.filter((i) => i !== id), durations: restDurations });
 }
