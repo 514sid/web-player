@@ -120,16 +120,16 @@ async function serveFile(request) {
   const start = parseInt(match[1], 10);
   const end   = match[2] ? parseInt(match[2], 10) : totalSize - 1;
 
-  const fresh  = await cache.match("/_files/" + fileId); // fresh body stream
-  const buffer = await fresh.arrayBuffer();
-  const chunk  = buffer.slice(start, end + 1);
+  // blob.slice() is a lazy view — avoids loading the full file into RAM for each Range request.
+  const blob  = await cached.blob();
+  const chunk = blob.slice(start, end + 1);
 
   return new Response(chunk, {
     status: 206,
     headers: {
       "Content-Type": contentType,
       "Content-Range": `bytes ${start}-${end}/${totalSize}`,
-      "Content-Length": String(chunk.byteLength),
+      "Content-Length": String(chunk.size),
       "Accept-Ranges": "bytes",
     },
   });
