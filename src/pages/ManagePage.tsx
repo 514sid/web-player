@@ -209,6 +209,7 @@ export default function ManagePage() {
   const [dragOver, setDragOver] = useState(false);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const [storage, setStorage] = useState<StorageInfo | null>(null);
+  const [persistent, setPersistent] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [previewFile, setPreviewFile] = useState<FileEntry | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -229,12 +230,21 @@ export default function ManagePage() {
   }, [navigate, previewFile, confirmDeleteId]);
 
   const refreshStorage = useCallback(async () => {
-    const est = await navigator.storage.estimate();
+    const [est, persisted] = await Promise.all([
+      navigator.storage.estimate(),
+      navigator.storage.persisted(),
+    ]);
     setStorage({
       quota: est.quota ?? 0,
       usage: est.usage ?? 0,
       cacheUsage: (est as { usageDetails?: { caches?: number } }).usageDetails?.caches ?? null,
     });
+    if (!persisted) {
+      const granted = await navigator.storage.persist();
+      setPersistent(granted);
+    } else {
+      setPersistent(true);
+    }
   }, []);
 
   const reload = useCallback(async () => {
@@ -345,6 +355,12 @@ export default function ManagePage() {
                 style={{ width: `${Math.min(100, (storage.usage / storage.quota) * 100).toFixed(2)}%` }}
               />
             </div>
+            {persistent !== null && (
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <span className={persistent ? "text-green-400" : "text-yellow-400"}>●</span>
+                <span>{persistent ? "Persistent storage granted" : "Persistent storage not granted"}</span>
+              </div>
+            )}
           </div>
         )}
 
